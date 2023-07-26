@@ -20,3 +20,4 @@ App will take loger start time if huge amount of objects is selected.
 <b>Todo</b>
 * copy/export function
 * UI enhancement
+* sorting/filtering
