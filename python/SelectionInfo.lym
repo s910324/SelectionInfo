@@ -16,208 +16,263 @@
  <interpreter>python</interpreter>
  <dsl-interpreter-name/>
  <text>import pya
+from PyQt5.QtWidgets import QApplication, QMenu
+from PyQt5.QtCore import Qt, QEvent
+from PyQt5.QtGui import QCursor
+from PyQt5 import QtWidgets
 
 iconPackPath = str(os.path.dirname(__file__)) + "/SelectionInfoIcon/"
 
-class SelectTableWidget(pya.QTableWidget):
-    def __init__(self, data = [], headers = [], parent = None):
-        super(SelectTableWidget, self).__init__()  
-        self.setEditTriggers(pya.QAbstractItemView.NoEditTriggers)
-        self.setSelectionBehavior(pya.QAbstractItemView.SelectRows)
-        self.data    = data
+
+class SelectTableWidget(QtWidgets.QTableWidget):
+    def __init__(self, data=[], headers=[], parent=None):
+        super(SelectTableWidget, self).__init__()
+        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.showMenu)
+        self.contextMenu = QMenu(self)
+        self.CP = self.contextMenu.addAction('Copy')
+        self.CP.triggered.connect(self.copy)
+
+        self.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
+        self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+        self.data = data
         self.headers = headers
         self.setData(data, headers)
- 
-    def setData(self, data = [], headers = []):
+
+    def selected_tb_text(self):
+        try:
+            indexes = self.selectedIndexes()
+            indexes_dict = {}
+            for index in indexes:
+                row, column = index.row(), index.column()
+                if row in indexes_dict.keys():
+                    indexes_dict[row].append(column)
+                else:
+                    indexes_dict[row] = [column]
+            text = '\t'.join(self.headers)
+            for row, columns in indexes_dict.items():
+                row_data = ''
+                for column in columns:
+                    data = self.item(row, column).text()
+                    if row_data:
+                        row_data = row_data + '\t' + data
+                    else:
+                        row_data = data
+
+                if text:
+                    text = text + '\n' + row_data
+                else:
+                    text = row_data
+            return text
+        except BaseException as e:
+            print(e)
+            return ''
+
+    def copy(self):
+
+        text = self.selected_tb_text()
+        if text:
+            clipboard = QApplication.clipboard()
+            clipboard.setText(text)
+
+    def keyPressEvent(self, event):
+        if (event.key() == Qt.Key_C) and QApplication.keyboardModifiers() == Qt.ControlModifier:
+            self.copy()
+        else:
+            super().keyPressEvent(event)
+
+    def showMenu(self, pos):
+        self.contextMenu.exec_(QCursor.pos())
+
+    def setData(self, data=[], headers=[]):
         self.clearContents()
-        self.data    = data
+        self.data = data
         self.headers = headers
-        
+
         self.setRowCount(len(data))
         self.setColumnCount(len(headers))
         self.setHorizontalHeaderLabels(headers)
-        
+
         for column in range(len(headers)):
             if column == 0:
                 self.setColumnWidth(column, 165)
             else:
                 self.setColumnWidth(column, 85)
-                
+
         for row, instData in enumerate(data):
             for column, header in enumerate(headers):
                 dataStr = str(instData[header])
-                item    = pya.QTableWidgetItem(dataStr)
+                item = QtWidgets.QTableWidgetItem(dataStr)
                 item.setTextAlignment(2)
-                self.setItem (row, column, item )
+                self.setItem(row, column, item)
 
     def clearContents(self):
-        self.data    = []
-        self.headers = []        
+        self.data = []
+        self.headers = []
         super(SelectTableWidget, self).clearContents()
-        
 
-                
-class SelectionInfoWidget(pya.QTableWidget):
-    def __init__(self, parent = None):
-        super(SelectionInfoWidget, self).__init__()  
 
-        self.selInstWidget  = SelectTableWidget()
+class SelectionInfoWidget(QtWidgets.QTableWidget):
+    def __init__(self, parent=None):
+        super(SelectionInfoWidget, self).__init__()
+
+        self.selInstWidget = SelectTableWidget()
         self.selShapeWidget = SelectTableWidget()
-        self.instGB         = pya.QGroupBox("Selected Instances")
-        self.shapeGB        = pya.QGroupBox("Selected Shapes")
-        self.instLY         = pya.QVBoxLayout()
-        self.shapeLY        = pya.QVBoxLayout()
-        self.refreshPB      = pya.QPushButton("refresh")
-        self.donePB         = pya.QPushButton("done")
-        self.layout         = pya.QGridLayout()
-        self.split          = pya.QSplitter()
-        
+        self.instGB = QtWidgets.QGroupBox("Selected Instances")
+        self.shapeGB = QtWidgets.QGroupBox("Selected Shapes")
+        self.instLY = QtWidgets.QVBoxLayout()
+        self.shapeLY = QtWidgets.QVBoxLayout()
+        self.refreshPB = QtWidgets.QPushButton("refresh")
+        self.donePB = QtWidgets.QPushButton("done")
+        self.layout = QtWidgets.QGridLayout()
+        self.split = QtWidgets.QSplitter()
+
         self.instGB.setLayout(self.instLY)
         self.shapeGB.setLayout(self.shapeLY)
         self.instLY.addWidget(self.selInstWidget)
         self.shapeLY.addWidget(self.selShapeWidget)
         self.split.addWidget(self.instGB)
         self.split.addWidget(self.shapeGB)
-        self.split.setOrientation(pya.Qt.Vertical)
-        
-        self.layout.addWidget(self.split,          0,0,1,3)
-        self.layout.addWidget(self.refreshPB,      1,1,1,1)
-        self.layout.addWidget(self.donePB,         1,2,1,1)
-        self.layout.setColumnStretch(0, 1) 
-        
-        self.refreshPB.clicked(lambda : self.setData())
-        self.donePB.clicked(lambda : self.close())        
+        self.split.setOrientation(Qt.Vertical)
+
+        self.layout.addWidget(self.split, 0, 0, 1, 3)
+        self.layout.addWidget(self.refreshPB, 1, 1, 1, 1)
+        self.layout.addWidget(self.donePB, 1, 2, 1, 1)
+        self.layout.setColumnStretch(0, 1)
+
+        self.refreshPB.clicked.connect(lambda: self.setData())
+        self.donePB.clicked.connect(lambda: self.close())
         self.setLayout(self.layout)
         self.resize(1000, 600)
         self.setData()
-        self.setWindowTitle ("Selection Information")
-        
+        self.setWindowTitle("Selection Information")
+
     def setData(self):
-        shapeHeaders        = ["layer", "Box", "Polygon", "Path", "Shapes", "rawArea", "mergedArea"]                
-        instHeaders         = ["cellName", "isPcell", "width", "height", "x", "y", "rotation", "row", "column", "arrayCount"]
+        shapeHeaders = ["layer", "Box", "Polygon", "Path", "Shapes", "rawArea", "mergedArea"]
+        instHeaders = ["cellName", "isPcell", "width", "height", "x", "y", "rotation", "row", "column", "arrayCount"]
         instData, shapeData = self.selectedItems()
         self.selInstWidget.setData(instData, instHeaders)
         self.selShapeWidget.setData(shapeData, shapeHeaders)
 
-
     def selectedItems(self):
-        mainWindow    = pya.Application.instance().main_window()
-        layoutView    = mainWindow.current_view()  
-        cellView      = layoutView.active_cellview() 
-        layout        = cellView.layout()
-        unit          = layout.dbu
-        selInstArray  = []
-        selShapeDict  = {}
+        mainWindow = pya.Application.instance().main_window()
+        layoutView = mainWindow.current_view()
+        cellView = layoutView.active_cellview()
+        layout = cellView.layout()
+        unit = layout.dbu
+        selInstArray = []
+        selShapeDict = {}
         for o in layoutView.each_object_selected():
             if o.is_cell_inst():
-                inst        = o.inst()
-                cell        = inst.cell
-                cellBox     = cell.bbox()
-                cellName    = cell.name
-                cellwidth   = cellBox.width()
-                cellheight  = cellBox.height()
-                
-                iTrans      = inst.trans
-                iR          = inst.cplx_trans.angle
-                iX          = iTrans.disp.x
-                iY          = iTrans.disp.y
-                oTrans      = o.trans()
-                oX          = oTrans.disp.x
-                oY          = oTrans.disp.y
-                oR          = oTrans.rot()
-                oM          = oTrans.is_mirror()
-                na          = inst.na
-                nb          = inst.nb
-                fTrans      = (oTrans * iTrans)
-                fX          = fTrans.disp.x
-                fY          = fTrans.disp.y
+                inst = o.inst()
+                cell = inst.cell
+                cellBox = cell.bbox()
+                cellName = cell.name
+                cellwidth = cellBox.width()
+                cellheight = cellBox.height()
 
-                info        = {
-                    "cellName"   : cellName,
-                    "isPcell"    : inst.is_pcell(),
-                    "width"      : "%.3f" % (cellwidth  * unit),
-                    "height"     : "%.3f" % (cellheight * unit),
-                    "x"          : "%.3f" % (fX         * unit),
-                    "y"          : "%.3f" % (fY         * unit),
-                    "rotation"   : "%.3f" % iR,
-                    "row"        : "%d"   % na,
-                    "column"     : "%d"   % nb,
-                    "arrayCount" : "%d"   % (na*nb)
+                iTrans = inst.trans
+                iR = inst.cplx_trans.angle
+                iX = iTrans.disp.x
+                iY = iTrans.disp.y
+                oTrans = o.trans()
+                oX = oTrans.disp.x
+                oY = oTrans.disp.y
+                oR = oTrans.rot()
+                oM = oTrans.is_mirror()
+                na = inst.na
+                nb = inst.nb
+                fTrans = (oTrans * iTrans)
+                fX = fTrans.disp.x
+                fY = fTrans.disp.y
+
+                info = {
+                    "cellName": cellName,
+                    "isPcell": inst.is_pcell(),
+                    "width": "%.3f" % (cellwidth * unit),
+                    "height": "%.3f" % (cellheight * unit),
+                    "x": "%.3f" % (fX * unit),
+                    "y": "%.3f" % (fY * unit),
+                    "rotation": "%.3f" % iR,
+                    "row": "%d" % na,
+                    "column": "%d" % nb,
+                    "arrayCount": "%d" % (na * nb)
                 }
                 selInstArray.append(info)
-                
+
             else:
-                shape     = o.shape
+                shape = o.shape
                 layerInfo = shape.layer_info
-                layerStr  = f"{layerInfo.layer}/{layerInfo.datatype}"
-        
-                if not(layerStr in selShapeDict):
+                layerStr = f"{layerInfo.layer}/{layerInfo.datatype}"
+
+                if not (layerStr in selShapeDict):
                     selShapeDict[layerStr] = {
-                        "layer"      : layerStr,
-                        "Box"        : 0,
-                        "Polygon"    : 0,
-                        "Path"       : 0,
-                        "Shapes"     : 0,
-                        "rawArea"    : 0,
-                        "mergedArea" : 0,
-                        "collect"    : pya.Shapes()
+                        "layer": layerStr,
+                        "Box": 0,
+                        "Polygon": 0,
+                        "Path": 0,
+                        "Shapes": 0,
+                        "rawArea": 0,
+                        "mergedArea": 0,
+                        "collect": pya.Shapes()
                     }
-                
-                if shape.is_box()     : selShapeDict[layerStr]["Box"]     += 1
-                if shape.is_polygon() : selShapeDict[layerStr]["Polygon"] += 1
-                if shape.is_path()    : selShapeDict[layerStr]["Path"]    += 1
-                
-                selShapeDict[layerStr]["Shapes"]   += 1
-                selShapeDict[layerStr]["rawArea"]  += shape.polygon.area()
-                selShapeDict[layerStr]["collect"].insert(shape.polygon.transformed(o.trans()))        
-            
+
+                if shape.is_box(): selShapeDict[layerStr]["Box"] += 1
+                if shape.is_polygon(): selShapeDict[layerStr]["Polygon"] += 1
+                if shape.is_path(): selShapeDict[layerStr]["Path"] += 1
+
+                selShapeDict[layerStr]["Shapes"] += 1
+                selShapeDict[layerStr]["rawArea"] += shape.polygon.area()
+                selShapeDict[layerStr]["collect"].insert(shape.polygon.transformed(o.trans()))
+
         for key in selShapeDict:
             region = pya.Region().insert(selShapeDict[key]["collect"])
-            selShapeDict[key]["mergedArea"] = f'{region.merged().area()*unit*unit:.6f}'
-            selShapeDict[key]["rawArea"]    = f'{selShapeDict[key]["rawArea"]*unit*unit:.6f}'
-            selShapeDict[key]["Box"]        = f'{selShapeDict[key]["Box"]:d}'
-            selShapeDict[key]["Polygon"]    = f'{selShapeDict[key]["Polygon"]:d}'
-            selShapeDict[key]["Path"]       = f'{selShapeDict[key]["Path"]:d}'
-            selShapeDict[key]["Shapes"]     = f'{selShapeDict[key]["Shapes"]:d}'
-            selShapeDict[key]["Shapes"]     = f'{selShapeDict[key]["Shapes"]}'   
+            selShapeDict[key]["mergedArea"] = f'{region.merged().area() * unit * unit:.6f}'
+            selShapeDict[key]["rawArea"] = f'{selShapeDict[key]["rawArea"] * unit * unit:.6f}'
+            selShapeDict[key]["Box"] = f'{selShapeDict[key]["Box"]:d}'
+            selShapeDict[key]["Polygon"] = f'{selShapeDict[key]["Polygon"]:d}'
+            selShapeDict[key]["Path"] = f'{selShapeDict[key]["Path"]:d}'
+            selShapeDict[key]["Shapes"] = f'{selShapeDict[key]["Shapes"]:d}'
+            selShapeDict[key]["Shapes"] = f'{selShapeDict[key]["Shapes"]}'
         selShapeArray = [selShapeDict[key] for key in selShapeDict]
-            
+
         return selInstArray, selShapeArray
-        
+
     def keyPressEvent(self, event):
-        if event.type() == pya.QEvent.KeyPress:
-            if event.key() in (pya.Qt.Key_Return, pya.Qt.Key_Escape):
+        if event.type() == QEvent.KeyPress:
+            if event.key() in (Qt.Key_Return, Qt.Key_Escape):
                 self.close()
 
-                                
-mainWindow    = pya.Application.instance().main_window()
+
+mainWindow = pya.Application.instance().main_window()
+
 
 def callSelectionInfoWidget():
-    layoutView = mainWindow.current_view()  
+    layoutView = mainWindow.current_view()
     if layoutView:
-        widget        = SelectionInfoWidget()
+        widget = SelectionInfoWidget()
         widget.show()
 
     else:
         pass
-              
-def bindMenu():
 
-    menu            = pya.MainWindow.instance().menu()
-    action          = pya.Action()
-    action.title    = "Selection Info"
+
+def bindMenu():
+    menu = pya.MainWindow.instance().menu()
+    action = pya.Action()
+    action.title = "Selection Info"
     action.tool_tip = "Selection Info"
-    action.icon     = iconPackPath + "icon.png"
-    action.on_triggered(lambda : callSelectionInfoWidget())
-    menu.insert_item("@toolbar.end", "Selection Info", action) 
-    
-    #menu      = pya.Application.instance().main_window().menu()
-    #act       = pya.Action()
-    #act.title = "Selection Info Tool"
-    #menu.insert_item("tools_menu.end", "Selection Info Tool", act)
-    #act.on_triggered(lambda : callSelectionInfoWidget())
-    
-   
+    action.icon = iconPackPath + "icon.png"
+    action.on_triggered(lambda: callSelectionInfoWidget())
+    menu.insert_item("@toolbar.end", "Selection Info", action)
+
+    # menu      = pya.Application.instance().main_window().menu()
+    # act       = pya.Action()
+    # act.title = "Selection Info Tool"
+    # menu.insert_item("tools_menu.end", "Selection Info Tool", act)
+    # act.on_triggered(lambda : callSelectionInfoWidget())
+
+
 bindMenu()
 </text>
 </klayout-macro>
