@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<klayout-macro>
+ <description/>
+ <version/>
+ <category>pymacros</category>
+ <prolog/>
+ <epilog/>
+ <doc/>
+ <autorun>true</autorun>
+ <autorun-early>false</autorun-early>
+ <priority>0</priority>
+ <shortcut/>
+ <show-in-menu>false</show-in-menu>
+ <group-name/>
+ <menu-path/>
+ <interpreter>python</interpreter>
+ <dsl-interpreter-name/>
+ <text>import os 
+import sys
+import pya
+from   importlib import reload  
+
+libPath  = os.path.realpath(os.path.join(os.path.dirname(__file__), "..", "python"))
+iconPath = os.path.realpath(os.path.join(os.path.dirname(__file__), "..", "icon"))
+
+if not libPath in sys.path:
+  sys.path.insert(0, libPath)
+  
+import selectTableWidget
+import selectionInfoWidget
+#import layerInfoProvider
+reload(selectTableWidget)
+reload(selectionInfoWidget)
+#reload(layerInfoProvider)
+
+mainWindow    = pya.Application.instance().main_window()
+
+def callSelectionInfoWidget():
+    layoutView = mainWindow.current_view()  
+    if layoutView:
+        widget        = selectionInfoWidget.SelectionInfoWidget()
+        widget.show()
+    else:
+        pass
+              
+def bindMenu_selectionInfo():
+    menu            = pya.MainWindow.instance().menu()
+    action          = pya.Action()
+    action.title    = "Selection Info"
+    action.tool_tip = "Selection Info"
+    action.icon     = iconPath + "\icon.png"
+    action.on_triggered(lambda : callSelectionInfoWidget())
+    menu.insert_item("@toolbar.end", "Selection Info", action) 
+     
+   
+bindMenu_selectionInfo()</text>
+</klayout-macro>
