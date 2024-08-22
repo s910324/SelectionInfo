@@ -19,8 +19,8 @@ class SelectTableWidget(pya.QTableWidget):
         self.setHorizontalHeaderLabels(headers)
         
         #print("\n")
-        print(", ".join(headers))
-        print("\n".join([ ", ".join([str(v) for k, v in row.items()]) for row in data]))
+        #print(", ".join(headers))
+        #print("\n".join([ ", ".join([str(v) for k, v in row.items()]) for row in data]))
         
         for column in range(len(headers)):
             if column == 0:
@@ -35,7 +35,21 @@ class SelectTableWidget(pya.QTableWidget):
                 item.setTextAlignment(2)
                 self.setItem (row, column, item )
                 
-        
+    def copyTable(self):
+        copyText    = ''
+        copiedCells = sorted(self.selectedIndexes())
+        maxColumn   = copiedCells[-1].column()
+        maxRow      = copiedCells[-1].row()
+               
+        for c in copiedCells:
+            cellText = self.item(c.row(), c.column()).text
+            copyText += cellText
+            if c.column() == maxColumn:
+                if c.row() != maxRow:
+                    copyText += '\n'
+            else:
+                copyText += '\t'
+        pya.QApplication.clipboard().setText(copyText)
 
     def clearContents(self):
         self.data    = []
@@ -44,3 +58,6 @@ class SelectTableWidget(pya.QTableWidget):
         
         
 
+    def keyPressEvent(self, event):
+        #super().keyPressEvent(event)
+        self.copyTable()
