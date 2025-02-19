@@ -4,11 +4,31 @@ class SelectTableWidget(pya.QTableWidget):
     def __init__(self, data = [], headers = [], parent = None):
         super(SelectTableWidget, self).__init__()  
         self.setEditTriggers(pya.QAbstractItemView.NoEditTriggers)
-        self.setSelectionBehavior(pya.QAbstractItemView.SelectRows)
+        self.setSelectionBehavior(pya.QAbstractItemView.SelectItems)
         self.data    = data
         self.headers = headers
         self.setData(data, headers)
- 
+        
+    def keyPressEvent(self, event):
+        self.copyTable()
+    
+    def copyTable(self):
+        copyText    = ''
+        copiedCells = sorted(self.selectedIndexes())
+        maxColumn   = copiedCells[-1].column()
+        maxRow      = copiedCells[-1].row()
+               
+        for c in copiedCells:
+            cellText = self.item(c.row(), c.column()).text
+            copyText += cellText
+            if c.column() == maxColumn:
+                if c.row() != maxRow:
+                    copyText += '\n'
+            else:
+                copyText += '\t'
+        pya.QApplication.clipboard().setText(copyText)
+        pya.QToolTip.showText(pya.QCursor.pos, "Information Copied to Clipboard")
+        
     def setData(self, data = [], headers = []):
         self.clearContents()
         self.data    = data
@@ -61,3 +81,8 @@ class SelectTableWidget(pya.QTableWidget):
     def keyPressEvent(self, event):
         #super().keyPressEvent(event)
         self.copyTable()
+
+if __name__ == "__main__": 
+    view = pya.Application.instance().main_window().current_view()
+    liw  = SelectTableWidget()
+    liw.show()

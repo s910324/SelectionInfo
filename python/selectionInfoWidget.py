@@ -38,7 +38,8 @@ class SelectionInfoWidget(pya.QWidget):
         
     def setData(self):
         shapeHeaders        = ["layer", "Box", "Polygon", "Path", "Shapes", "rawArea", "mergedArea"]                
-        instHeaders         = ["cellName", "isPcell", "width", "height", "x", "y", "rotation", "mirror", "row", "column", "row_dx", "row_dy", "column_dx", "column_dy", "arrayCount"]
+        instHeaders         = ["cellName", "isPcell", "width", "height", "x", "y", "rotation", "mirror", "row", "column", "row_dx", "row_dy", "column_dx", "column_dy", "arrayCount", "cell_LB", "cell_RT", "cell_center"]
+
         instData, shapeData = self.selectedItems()
         self.selInstWidget.setData(instData, instHeaders)
         self.selShapeWidget.setData(shapeData, shapeHeaders)
@@ -57,10 +58,8 @@ class SelectionInfoWidget(pya.QWidget):
             if o.is_cell_inst():
                 inst        = o.inst()
                 cell        = inst.cell
-                cellBox     = cell.bbox()
+                cellBox     = cell.dbbox()
                 cellName    = cell.name
-                cellwidth   = cellBox.width()
-                cellheight  = cellBox.height()
                 
                 iTrans      = inst.trans
                 iR          = inst.cplx_trans.angle
@@ -78,14 +77,49 @@ class SelectionInfoWidget(pya.QWidget):
                 fTrans      = (oTrans * iTrans)
                 fX          = fTrans.disp.x
                 fY          = fTrans.disp.y
-
+                
+                cellWidth, cellHeight = round(cellBox.width(), 6), round(cellBox.height(), 6)
+                cellP1x,   cellP1y    = round(cellBox.p1.x,    6), round(cellBox.p1.y,     6)
+                cellP2x,   cellP2y    = round(cellBox.p2.x,    6), round(cellBox.p2.y,     6)
+                
+                if (cellP1x,cellP1y)==(0, 0) :  
+                    cellOrigin = "Lower Left"
+                    
+                elif (cellP1x,cellP1y)==(0, -cellHeight/2) :  
+                    cellOrigin = "Center Left"     
+                        
+                elif (cellP1x,cellP1y)==(0, -cellHeight) :  
+                    cellOrigin = "Upper Left"
+                    
+                elif (cellP1x,cellP1y)==(-cellWidth/2, 0) :  
+                    cellOrigin = "Lower Center"
+                    
+                elif (cellP1x,cellP1y)==(-cellWidth/2, -cellHeight/2) :  
+                    cellOrigin = "Center"     
+                        
+                elif (cellP1x,cellP1y)==(-cellWidth/2, -cellHeight) :  
+                    cellOrigin = "Upper Center"
+                         
+                elif (cellP1x,cellP1y)==(-cellWidth, 0) :  
+                    cellOrigin = "Lower Right"
+                    
+                elif (cellP1x,cellP1y)==(-cellWidth, -cellHeight/2) :  
+                    cellOrigin = "Center Right"     
+                        
+                elif (cellP1x,cellP1y)==(-cellWidth, -cellHeight) :  
+                    cellOrigin = "Upper Right"    
+                else:
+                    cellOrigin = "Non Standard"
+                    result["Warning"].append("Non-standard Cell origin")
+                    
+                    
                 info        = {
                     "cellName"   : cellName,
                     "isPcell"    : inst.is_pcell(),
-                    "width"      : "%.3f" % (cellwidth  * unit),
-                    "height"     : "%.3f" % (cellheight * unit),
-                    "x"          : "%.3f" % (fX         * unit),
-                    "y"          : "%.3f" % (fY         * unit),
+                    "width"      : "%.3f" % (cellWidth ),
+                    "height"     : "%.3f" % (cellHeight),
+                    "x"          : "%.3f" % (oX         * unit),
+                    "y"          : "%.3f" % (oY         * unit),
                     "rotation"   : "%.3f" % iR,
                     "mirror"     : "%s"   % oM,
                     "row"        : "%d"   % na,
@@ -94,7 +128,10 @@ class SelectionInfoWidget(pya.QWidget):
                     "row_dy"     : "%.3f" % a.y,
                     "column_dx"  : "%.3f" % b.x,
                     "column_dy"  : "%.3f" % b.y,
-                    "arrayCount" : "%d"   % (na*nb)
+                    "arrayCount" : "%d"   % (na*nb),
+                    "cell_LB"    : f"({cellP1x}, {cellP1y})",
+                    "cell_RT"    : f"({cellP2x}, {cellP2y})",
+                    "cell_center": cellOrigin,
                 }
                 selInstArray.append(info)
                 
@@ -125,6 +162,7 @@ class SelectionInfoWidget(pya.QWidget):
                     selShapeDict[layerStr]["collect"].insert(shape.polygon.transformed(o.trans())) 
                     
                 else:
+                    print("X")
                     if shape.is_text()    : selShapeDict[layerStr]["Text"]    += 1       
             
         for key in selShapeDict:
@@ -144,3 +182,8 @@ class SelectionInfoWidget(pya.QWidget):
         if event.type() == pya.QEvent.KeyPress:
             if event.key() in (pya.Qt.Key_Return, pya.Qt.Key_Escape):
                 self.close()
+
+if __name__ == "__main__": 
+    view = pya.Application.instance().main_window().current_view()
+    liw  = SelectionInfoWidget()
+    liw.show()
